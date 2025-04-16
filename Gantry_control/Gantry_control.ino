@@ -298,57 +298,64 @@ void handleSerialCommands() {
     String command = Serial.readStringUntil('\n');
     command.trim();
 
-    // Echo the received command
     Serial.print("RECV: ");
     Serial.println(command);
 
-    // Handle specific commands
     if (command.startsWith("GOTO")) {
-      float x, y, z;
-      if (sscanf(command.c_str(), "GOTO %f %f %f", &x, &y, &z) == 3) {
-        Serial.println("ACK: Gantry position command received");
-        moveTo3D(x, y, z);  // Call your movement function
+      Serial.println("ACK: Gantry position command received");
+
+      // Inline parsing logic from processGotoCommand
+      float x = 0, y = 0, z = 0;
+      int idx1 = command.indexOf(' ');
+      int idx2 = command.indexOf(' ', idx1 + 1);
+      int idx3 = command.indexOf(' ', idx2 + 1);
+
+      if (idx1 > 0 && idx2 > idx1 && idx3 > idx2) {
+        x = command.substring(idx1 + 1, idx2).toFloat();
+        y = command.substring(idx2 + 1, idx3).toFloat();
+        z = command.substring(idx3 + 1).toFloat();
+        moveTo3D(x, y, z);
       } else {
-        Serial.println("ERR: GOTO command parsing failed");
+        Serial.println("ERR: Invalid GOTO format. Use: GOTO x y z");
       }
     }
     else if (command.startsWith("ROTATE")) {
       Serial.println("ACK: End effector rotation command received");
-      // Add actual rotation logic here if relevant to gantry
+      // Add logic if needed
     }
     else if (command == "HOME") {
       Serial.println("ACK: Homing command received");
-      homeAllAxes();  // Call homing function
+      homeAllAxes();
     }
     else if (command == "GETPOS") {
       Serial.println("ACK: Sending position");
-      reportPosition();  // Call to send actual position via Serial
+      reportPosition();
     }
     else if (command == "GETANGLES") {
       Serial.println("ACK: Sending simulated angles: Theta45.0 Delta-15.0");
-      // If needed, add real angle feedback if Arduino has it
     }
     else if (command == "STOP") {
       Serial.println("ACK: Emergency stop activated");
-      emergencyStop();  // Stop all motion
+      emergencyStop();
     }
     else if (command == "INJECTA") {
-      Serial.println("ACK: Injection command executed");
-      inject(866);  // Run standard injection logic
+      Serial.println("ACK: Inject A command executed");
+      inject(866);
     }
     else if (command == "INJECT") {
-      Serial.println("ACK: Inject A command executed");
-      inject(26);  // You can define a separate injectA() if needed
+      Serial.println("ACK: Inject command executed");
+      inject(26);  // Replace with injectA() if needed
     }
-    else if (command == "INJECTB") {
-      Serial.println("ACK: Inject B (retraction) command executed");
-      inject(-892);  // Replace with injectB() if separate function exists
+    else if (command == "INJECTC") {
+      Serial.println("ACK: Inject C (retraction) command executed");
+      inject(-26);  // Replace with injectB() if needed
     }
     else {
       Serial.println("ERR: Unknown command format");
     }
   }
 }
+
 
 
 void setup() {
@@ -382,6 +389,9 @@ void setup() {
   stepperYL.setCurrentPosition(0);
   stepperYR.setCurrentPosition(0);
 
+  homeAllAxes();
+  delay(5000);
+
 }
 
 
@@ -408,6 +418,7 @@ void emergencyStop() {
 
 void loop() {
   handleSerialCommands();  // Always listen for commands
+  delay(2000);
 }
 
 
