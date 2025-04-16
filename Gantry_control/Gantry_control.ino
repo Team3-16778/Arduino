@@ -411,7 +411,6 @@ void emergencyStop() {
 
 void loop() {
   handleSerialCommands();  // Always listen for commands
-  delay(2000);
 }
 
 
