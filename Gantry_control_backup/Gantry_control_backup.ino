@@ -426,11 +426,11 @@ void loop() {
   inject(26);
   delay(1000);
   inject(-120);
-  moveTo3D(150, 250, 20);
+  moveTo3D(200, 250, 40);
   delay(1000);
-  moveTo3D(10, 250, 20);
+  moveTo3D(10, 250, 40);
   delay(1000);
-  moveTo3D(10 ,10 ,20);
+  moveTo3D(10 ,10 ,40);
 
 }
 
