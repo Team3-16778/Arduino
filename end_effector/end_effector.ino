@@ -1,153 +1,100 @@
+#include <Servo.h>
 #include <AccelStepper.h>
 
-// Pin assignments
-const int EN_PIN = 5;    // Enable pin
-const int DIR_PIN = 6;   // Direction pin
+// ----- Servo Setup -----
+Servo myservo;
+
+// ----- Stepper Motor Setup -----
+const int EN_PIN   = 5;  // Enable pin for TB6600
+const int DIR_PIN  = 6;  // Direction pin
 const int STEP_PIN = 7;  // Step pin
-const int INJECT_PIN = 8; // Injection solenoid control pin
+const int STEPS_PER_REV = 1600; // Steps per revolution (adjust as per your driver)
 
-// Motor parameters
-const int STEPS_PER_REV = 1600;  // 200 steps/rev * 8 microsteps
-const float MAX_SPEED = 1000.0;  // steps per second
-const float ACCELERATION = 500.0; // steps per second^2
+const float steps_per_mm = 80.0;    // Example: 80 steps per mm (adjust according to your hardware)
+const float initial_position_mm = 40;  // Initial position in mm
 
-// Create stepper object
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 
-// Current position tracking
-float currentTheta = 0.0;  // Main rotation angle
-float currentDelta = 0.0;  // Secondary angle (if applicable)
+// Function to perform a full stepper cycle (40mm -> 0mm -> 40mm)
+void performStepperCycle() {
+  long initial_steps = initial_position_mm * steps_per_mm;
 
-// Serial communication
-const int SERIAL_BAUD = 9600;
-const int BUFFER_SIZE = 64;
-char inputBuffer[BUFFER_SIZE];
-int bufferIndex = 0;
+  // Move stepper from initial position to 0 mm
+  stepper.moveTo(0);
+  while (stepper.distanceToGo() != 0) {
+    stepper.run();
+  }
+  
+  // Now move stepper back to initial position (40 mm)
+  stepper.moveTo(initial_steps);
+  while (stepper.distanceToGo() != 0) {
+    stepper.run();
+  }
+}
 
 void setup() {
-  // Initialize pins
-  pinMode(EN_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW);  // Enable driver
-  pinMode(INJECT_PIN, OUTPUT);
-  digitalWrite(INJECT_PIN, LOW);
-
-  // Configure stepper
-  stepper.setMaxSpeed(MAX_SPEED);
-  stepper.setAcceleration(ACCELERATION);
-  stepper.setCurrentPosition(0);
-
-  // Initialize serial communication
-  Serial.begin(SERIAL_BAUD);
-  while (!Serial);  // Wait for serial port to connect (for USB)
+  // Start serial communication for receiving commands
+  Serial.begin(9600);
   
-  Serial.println("EndEffector Ready");
-  Serial.println("Commands: HOME, ROTATE theta delta, STOP, GETANGLES, INJECT");
+  // ----- Servo Initialization -----
+  myservo.attach(9);        // Attach the servo to pin 9
+  myservo.write(0);         // Set initial servo angle to 0 degrees
+  
+  // ----- Stepper Initialization -----
+  pinMode(EN_PIN, OUTPUT);
+  digitalWrite(EN_PIN, LOW);  // Enable the stepper driver (LOW = enabled)
+  
+  stepper.setMaxSpeed(2000);       // Set maximum speed (in steps per second)
+  stepper.setAcceleration(800);    // Set acceleration (in steps per second squared)
+  
+  // Set the stepper's starting position to 40 mm in steps
+  long initial_steps = initial_position_mm * steps_per_mm;
+  stepper.setCurrentPosition(initial_steps);
+  
+  // Optionally, move the stepper to 0 mm and then back to 40 mm on startup.
+  stepper.moveTo(0);
+  while(stepper.distanceToGo() != 0) {
+    stepper.run();
+  }
+  stepper.moveTo(initial_steps);
 }
 
 void loop() {
-  // Process incoming serial commands
-  processSerialCommands();
-  
-  // Run the stepper motor
-  stepper.run();
-}
-
-void processSerialCommands() {
-  while (Serial.available() > 0) {
-    char incomingChar = Serial.read();
+  // Check if data is available from the serial port
+  if (Serial.available() > 0) {
+    // Read an incoming line (ends with '\n')
+    String command = Serial.readStringUntil('\n');
+    command.trim();  // Remove any extra whitespace
     
-    // Check for buffer overflow
-    if (bufferIndex < BUFFER_SIZE - 1) {
-      // Check for end of line
-      if (incomingChar == '\n') {
-        inputBuffer[bufferIndex] = '\0';  // Null terminate
-        handleCommand(inputBuffer);
-        bufferIndex = 0;  // Reset buffer
-      } else {
-        inputBuffer[bufferIndex++] = incomingChar;
+    // Check if the command begins with "ROTATE"
+    if (command.startsWith("ROTATE")) {
+      // Expected command format: "ROTATE <theta> <delta>"
+      int firstSpace = command.indexOf(' ');
+      int secondSpace = command.indexOf(' ', firstSpace + 1);
+      
+      // Ensure both parameters exist
+      if (firstSpace != -1 && secondSpace != -1) {
+        String thetaStr = command.substring(firstSpace + 1, secondSpace);
+        String deltaStr = command.substring(secondSpace + 1);
+        
+        float theta = thetaStr.toFloat();
+        float delta = deltaStr.toFloat();
+
+        // Set the servo to the specified angle
+        myservo.write(theta);  
+        Serial.print("Servo rotated to: ");
+        Serial.println(theta);
+        
+        // If delta is 1, run the stepper motor cycle
+        if (delta == 1.0) {
+          Serial.println("Performing stepper cycle...");
+          performStepperCycle();
+          Serial.println("Stepper cycle complete.");
+        }
       }
-    } else {
-      // Buffer overflow, reset and discard
-      bufferIndex = 0;
     }
   }
-}
-
-void handleCommand(char* command) {
-  // Convert to uppercase for case-insensitive comparison
-  for (int i = 0; command[i]; i++) {
-    command[i] = toupper(command[i]);
-  }
-
-  // Parse command
-  if (strcmp(command, "HOME") == 0) {
-    home();
-  } 
-  else if (strcmp(command, "STOP") == 0) {
-    stop();
-  } 
-  else if (strcmp(command, "INJECT") == 0) {
-    inject();
-  }
-  else if (strcmp(command, "GETANGLES") == 0) {
-    getAngles();
-  }
-  else if (strncmp(command, "ROTATE", 6) == 0) {
-    // Parse ROTATE command with two float parameters
-    float theta, delta;
-    if (sscanf(command + 6, "%f %f", &theta, &delta) == 2) {
-      rotate(theta, delta);
-    } else {
-      Serial.println("ERROR: Invalid ROTATE parameters");
-    }
-  }
-  else {
-    Serial.println("ERROR: Unknown command");
-  }
-}
-
-void home() {
-  Serial.println("Homing...");
-  stepper.moveTo(0);
-  currentTheta = 0.0;
-  currentDelta = 0.0;
-  Serial.println("HOME complete");
-}
-
-void stop() {
-  Serial.println("Emergency stop!");
-  stepper.stop();  // Abrupt stop
-  stepper.disableOutputs();
-  digitalWrite(INJECT_PIN, LOW);
-}
-
-void inject() {
-  Serial.println("Injection started");
-  digitalWrite(INJECT_PIN, HIGH);
-  delay(500);  // Injection duration (ms)
-  digitalWrite(INJECT_PIN, LOW);
-  Serial.println("Injection complete");
-}
-
-void rotate(float theta, float delta) {
-  // Convert angles to steps (example conversion - adjust as needed)
-  long thetaSteps = (long)(theta * STEPS_PER_REV / 360.0);
-  // For this example, we'll only use theta for the single stepper
-  // Delta would control a second motor if available
   
-  Serial.print("Moving to theta: ");
-  Serial.print(theta);
-  Serial.print("°, delta: ");
-  Serial.println(delta);
-  
-  stepper.moveTo(thetaSteps);
-  currentTheta = theta;
-  currentDelta = delta;
-}
-
-void getAngles() {
-  Serial.print("ANGLES: ");
-  Serial.print(currentTheta);
-  Serial.print(" ");
-  Serial.println(currentDelta);
+  // Always run the stepper so it can process any moves in the background.
+  stepper.run();
 }
