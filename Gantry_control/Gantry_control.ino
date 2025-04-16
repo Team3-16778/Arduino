@@ -348,7 +348,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTC") {
       Serial.println("ACK: Inject C (retraction) command executed");
-      inject(-26);  // Replace with injectB() if needed
+      inject(-120);  // Replace with injectB() if needed
     }
     else {
       Serial.println("ERR: Unknown command format");
