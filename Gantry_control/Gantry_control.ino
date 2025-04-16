@@ -262,7 +262,7 @@ void inject(float y_mm, float desiredMoveTime) {
   const float mmPerRev_Z = 58.33;
 
   float y_RPM = (y_mm_per_sec / mmPerRev_Y) * 60.0;
-  float z_RPM = (z_mm_per_sec / mmPerRev_Z) * 60.0 * 0.8;
+  float z_RPM = (z_mm_per_sec / mmPerRev_Z) * 60.0;
 
   setSpeedRPM(stepperYL, y_RPM);
   setSpeedRPM(stepperYR, y_RPM);
@@ -272,7 +272,7 @@ void inject(float y_mm, float desiredMoveTime) {
   const float linearAccel_mm_per_s2 = 900.0;
 
   float accelY_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_Y;
-  float accelZ_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_XZ * 0.5;
+  float accelZ_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_XZ;
 
   stepperYL.setAcceleration(accelY_steps_per_s2);
   stepperYR.setAcceleration(accelY_steps_per_s2);
@@ -340,7 +340,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTA") {
       Serial.println("ACK: Inject A command executed");
-      inject(86.6, 10);
+      inject(86.6, 5);
     }
     else if (command == "INJECT") {
       Serial.println("ACK: Inject command executed");
@@ -348,7 +348,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTC") {
       Serial.println("ACK: Inject C (retraction) command executed");
-      inject(-120, 15);  // Replace with injectB() if needed
+      inject(-120, 5);  // Replace with injectB() if needed
     }
     else {
       Serial.println("ERR: Unknown command format");
