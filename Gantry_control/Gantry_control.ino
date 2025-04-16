@@ -27,10 +27,22 @@ ezButton limitSwitch_Z_Bottom(34);
 ezButton limitSwitch_X_Left(30);
 ezButton limitSwitch_X_Right(27);
 
-// Constants
+
 const int stepsPerRev = 200;
-const float beltCircumference = 18.57 * 3.14159; // X and Z pulley
-const float leadScrewPitch = 4.0;                // Y axis
+const int microstepping = 2;
+const float mmPerRev_XZ = 58.33;
+const float stepsPerMM_XZ = (stepsPerRev * microstepping) / mmPerRev_XZ;  // ≈ 7.5
+
+
+
+
+const float lead = 8.0;                          // For Y
+
+
+const float stepsPerMM_Y = (stepsPerRev * microstepping) / lead;                // 50 steps/mm
+
+
+
 
 // Motor definitions
 AccelStepper stepperX(AccelStepper::DRIVER, MOTORX_STEP, MOTORX_DIR);
@@ -38,14 +50,17 @@ AccelStepper stepperZ(AccelStepper::DRIVER, MOTORZ_STEP, MOTORZ_DIR);
 AccelStepper stepperYL(AccelStepper::DRIVER, MOTORYL_STEP, MOTORYL_DIR);
 AccelStepper stepperYR(AccelStepper::DRIVER, MOTORYR_STEP, MOTORYR_DIR);
 
-// Conversion functions
+
 int32_t toSteps_XZ(float mm) {
-  return static_cast<int32_t>((mm / beltCircumference) * stepsPerRev * 2);
+  return static_cast<int32_t>(mm * stepsPerMM_XZ);
 }
 
 int32_t toSteps_Y(float mm) {
-  return static_cast<int32_t>((mm / leadScrewPitch) * stepsPerRev);
+  return static_cast<int32_t>(mm * stepsPerMM_Y);
 }
+
+
+
 
 void setSpeedRPM(AccelStepper &stepper, float rpm) {
   float stepsPerSec = (rpm * stepsPerRev) / 60.0;
@@ -72,40 +87,32 @@ bool anySwitchPressed() {
          limitSwitch_Lower_Right.isPressed() || limitSwitch_Lower_Left.isPressed();
 }
 
-void homeAllAxes() {
-  stepperX.setMaxSpeed(600);
-  stepperZ.setMaxSpeed(400);
-  stepperYL.setMaxSpeed(800);
-  stepperYR.setMaxSpeed(800);
 
-  stepperX.moveTo(-10000);
-  stepperZ.moveTo(-10000);
+void moveYBoth(float y_mm) {
+  int32_t ySteps = toSteps_Y(y_mm);
+  stepperYL.moveTo(ySteps);
+  stepperYR.moveTo(ySteps);
+
+  while (stepperYL.distanceToGo() != 0 || stepperYR.distanceToGo() != 0) {
+    updateSwitches();  // Optional: for safety
+    stepperYL.run();
+    stepperYR.run();
+  }
+}
+
+
+void homeAllAxes() {
+  Serial.println("Starting Y-axis homing...");
+  stepperYL.setMaxSpeed(1600);
+  stepperYR.setMaxSpeed(1600);
   stepperYL.moveTo(-100000);
   stepperYR.moveTo(-100000);
 
-  bool xHomed = false;
-  bool zHomed = false;
   bool yLeftHomed = false;
   bool yRightHomed = false;
 
   while (true) {
     updateSwitches();
-
-    if (!limitSwitch_X_Left.isPressed()) {
-      stepperX.run();
-    } else if (!xHomed) {
-      Serial.println("Homing Hit: X_Left Limit Switch");
-      stepperX.stop();
-      xHomed = true;
-    }
-
-    if (!limitSwitch_Z_Bottom.isPressed()) {
-      stepperZ.run();
-    } else if (!zHomed) {
-      Serial.println("Homing Hit: Z_Bottom Limit Switch");
-      stepperZ.stop();
-      zHomed = true;
-    }
 
     if (!limitSwitch_Upper_Left.isPressed()) {
       stepperYL.run();
@@ -123,41 +130,93 @@ void homeAllAxes() {
       yRightHomed = true;
     }
 
-    if (xHomed && zHomed && yLeftHomed && yRightHomed) {
+    if (yLeftHomed && yRightHomed) {
       break;
     }
   }
 
-  // Reset current positions to 0
-  stepperX.setCurrentPosition(0);
-  stepperZ.setCurrentPosition(0);
   stepperYL.setCurrentPosition(0);
   stepperYR.setCurrentPosition(0);
 
-  // Move all axes slightly away from switches (e.g. 10 mm up)
-  int32_t liftStepsY = toSteps_Y(10.0);    // 10mm up for Y
-  int32_t liftStepsZ = toSteps_XZ(10.0);   // 10mm up for Z
-  int32_t liftStepsX = toSteps_XZ(10.0);   // Optional: move X a bit too
+  // Move Y to 200mm
+  moveYBoth(260.0);
 
-  stepperX.moveTo(liftStepsX);
-  stepperZ.moveTo(liftStepsZ);
-  stepperYL.moveTo(liftStepsY);
-  stepperYR.moveTo(liftStepsY);
+  Serial.println("Y-axis homed and moved to 350mm.");
 
-  // Move until reached
+  // --------------------------
+
+  Serial.println("Starting X-axis homing...");
+  stepperX.setMaxSpeed(600);
+  stepperX.moveTo(-10000);
+
+  bool xHomed = false;
+
+  while (true) {
+    updateSwitches();
+
+    if (!limitSwitch_X_Left.isPressed()) {
+      stepperX.run();
+    } else if (!xHomed) {
+      Serial.println("Homing Hit: X_Left Limit Switch");
+      stepperX.stop();
+      xHomed = true;
+    }
+
+    if (xHomed) break;
+  }
+
+  stepperX.setCurrentPosition(0);
+
+  // Move X to 100mm
+  int32_t xTarget = toSteps_XZ(100.0);
+  stepperX.moveTo(xTarget);
   stepperX.runToPosition();
-  stepperZ.runToPosition();
-  stepperYL.runToPosition();
-  stepperYR.runToPosition();
+  Serial.println("X-axis homed and moved to 100mm.");
 
-  Serial.println("Post-homing lift completed (10 mm).");
+  // --------------------------
+
+  Serial.println("Starting Z-axis homing...");
+  stepperZ.setMaxSpeed(300);
+  stepperZ.moveTo(-10000);
+
+  bool zHomed = false;
+
+  while (true) {
+    updateSwitches();
+
+    if (!limitSwitch_Z_Bottom.isPressed()) {
+      stepperZ.run();
+    } else if (!zHomed) {
+      Serial.println("Homing Hit: Z_Bottom Limit Switch");
+      stepperZ.stop();
+      zHomed = true;
+    }
+
+    if (zHomed) break;
+  }
+
+  stepperZ.setCurrentPosition(0);
+
+  // Move Z to 200mm
+  int32_t zTarget = toSteps_XZ(290.0);
+  stepperZ.moveTo(zTarget);
+  stepperZ.runToPosition();
+  Serial.println("Z-axis homed and moved to 200mm.");
+
+  Serial.println("Homing complete.");
 }
+
 
 // Modified moveTo3D with safety
 void moveTo3D(float x_mm, float y_mm, float z_mm) {
   int32_t stepsX = toSteps_XZ(x_mm);
   int32_t stepsZ = toSteps_XZ(z_mm);
   int32_t stepsY = toSteps_Y(y_mm);
+
+  Serial.println("Moving to 3D position:");
+  Serial.print("  Target X (mm): "); Serial.print(x_mm); Serial.print(" → Steps: "); Serial.println(stepsX);
+  Serial.print("  Target Y (mm): "); Serial.print(y_mm); Serial.print(" → Steps: "); Serial.println(stepsY);
+  Serial.print("  Target Z (mm): "); Serial.print(z_mm); Serial.print(" → Steps: "); Serial.println(stepsZ);
 
   stepperX.moveTo(stepsX);
   stepperZ.moveTo(stepsZ);
@@ -181,58 +240,115 @@ void moveTo3D(float x_mm, float y_mm, float z_mm) {
   }
 }
 
-void gotoXYZ(float x_mm, float y_mm, float z_mm) {
-  Serial.print("GOTO Command Received. Moving to: ");
-  Serial.print("X = "); Serial.print(x_mm);
-  Serial.print(", Y = "); Serial.print(y_mm);
-  Serial.print(", Z = "); Serial.println(z_mm);
-
-  moveTo3D(x_mm, y_mm, z_mm);
-}
 
 void inject(float y_mm) {
-  // Compute corresponding Z movement using tan(20°)
-  float z_mm = y_mm * 0.364;  // tan(20°)
+  const float angleTan = 0.577;  // tan(30°)
+  float z_mm = y_mm * angleTan;
 
-  // Get current position in mm
-  float currentY = stepperYL.currentPosition() * (leadScrewPitch / stepsPerRev);
-  float currentZ = stepperZ.currentPosition() * (beltCircumference / (stepsPerRev * 2));
-  float currentX = stepperX.currentPosition() * (beltCircumference / (stepsPerRev * 2));
+  // ----- Current Position in mm -----
+  float currentY = stepperYL.currentPosition() / stepsPerMM_Y;
+  float currentZ = stepperZ.currentPosition() / stepsPerMM_XZ;
+  float currentX = stepperX.currentPosition() / stepsPerMM_XZ;
 
-  // Calculate target Y and Z positions
+  // ----- Target Positions in mm -----
   float targetY = currentY + y_mm;
   float targetZ = currentZ + z_mm;
 
-  // ----- Speed Ratio Calculation -----
-  float ratioY = abs(y_mm);
-  float ratioZ = abs(z_mm);
-  float baseSpeed = 6000; // adjust as needed (steps/sec)
+  // ----- Time Sync -----
+  float desiredMoveTime = 0.5;  // seconds
+  float y_mm_per_sec = y_mm / desiredMoveTime;
+  float z_mm_per_sec = z_mm / desiredMoveTime;
 
-  float speedY = baseSpeed;
-  float speedZ = (ratioZ / ratioY) * baseSpeed;
+  const float mmPerRev_Y = 8.0;
+  const float mmPerRev_Z = 53.33;
 
-  // Set speeds accordingly
-  stepperYL.setMaxSpeed(speedY);
-  stepperYR.setMaxSpeed(speedY);
-  stepperZ.setMaxSpeed(speedZ);
+  float y_RPM = (y_mm_per_sec / mmPerRev_Y) * 60.0;
+  float z_RPM = (z_mm_per_sec / mmPerRev_Z) * 60.0 * 0.8;
 
-  // Optionally set matching accelerations
-  stepperYL.setAcceleration(2000);
-  stepperYR.setAcceleration(2000);
-  stepperZ.setAcceleration(2000);
+  setSpeedRPM(stepperYL, y_RPM);
+  setSpeedRPM(stepperYR, y_RPM);
+  setSpeedRPM(stepperZ, z_RPM);
 
-  // ---- Perform the move ----
-  Serial.print("Injecting to Y: ");
-  Serial.print(targetY);
-  Serial.print(" mm, Z: ");
-  Serial.print(targetZ);
-  Serial.println(" mm");
+  // ----- Acceleration Sync (steps/sec²), scaled for linear distance per step
+  const float linearAccel_mm_per_s2 = 900.0;  // target acceleration in mm/s²
 
+  float accelY_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_Y;
+  float accelZ_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_XZ * 0.5;
+
+  stepperYL.setAcceleration(accelY_steps_per_s2);
+  stepperYR.setAcceleration(accelY_steps_per_s2);
+  stepperZ.setAcceleration(accelZ_steps_per_s2);
+
+  // ----- Log -----
+  Serial.print("Injecting at 30° to Y: ");
+  Serial.print(targetY); Serial.print(" mm, Z: ");
+  Serial.print(targetZ); Serial.print(" mm | ");
+  Serial.print("Y RPM: "); Serial.print(y_RPM);
+  Serial.print(", Z RPM: "); Serial.print(z_RPM);
+  Serial.print(" | Accel Y: "); Serial.print(accelY_steps_per_s2);
+  Serial.print(", Accel Z: "); Serial.println(accelZ_steps_per_s2);
+
+  // ----- Move -----
   moveTo3D(currentX, targetY, targetZ);
 }
 
 
+void handleSerialCommands() {
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
 
+    // Echo the received command
+    Serial.print("RECV: ");
+    Serial.println(command);
+
+    // Handle specific commands
+    if (command.startsWith("GOTO")) {
+      float x, y, z;
+      if (sscanf(command.c_str(), "GOTO %f %f %f", &x, &y, &z) == 3) {
+        Serial.println("ACK: Gantry position command received");
+        moveTo3D(x, y, z);  // Call your movement function
+      } else {
+        Serial.println("ERR: GOTO command parsing failed");
+      }
+    }
+    else if (command.startsWith("ROTATE")) {
+      Serial.println("ACK: End effector rotation command received");
+      // Add actual rotation logic here if relevant to gantry
+    }
+    else if (command == "HOME") {
+      Serial.println("ACK: Homing command received");
+      homeAllAxes();  // Call homing function
+    }
+    else if (command == "GETPOS") {
+      Serial.println("ACK: Sending position");
+      reportPosition();  // Call to send actual position via Serial
+    }
+    else if (command == "GETANGLES") {
+      Serial.println("ACK: Sending simulated angles: Theta45.0 Delta-15.0");
+      // If needed, add real angle feedback if Arduino has it
+    }
+    else if (command == "STOP") {
+      Serial.println("ACK: Emergency stop activated");
+      emergencyStop();  // Stop all motion
+    }
+    else if (command == "INJECTA") {
+      Serial.println("ACK: Injection command executed");
+      inject(866);  // Run standard injection logic
+    }
+    else if (command == "INJECT") {
+      Serial.println("ACK: Inject A command executed");
+      inject(26);  // You can define a separate injectA() if needed
+    }
+    else if (command == "INJECTB") {
+      Serial.println("ACK: Inject B (retraction) command executed");
+      inject(-892);  // Replace with injectB() if separate function exists
+    }
+    else {
+      Serial.println("ERR: Unknown command format");
+    }
+  }
+}
 
 
 void setup() {
@@ -246,8 +362,8 @@ void setup() {
   setSpeedRPM(stepperYL, yRPM);
   setSpeedRPM(stepperYR, yRPM);
 
-  stepperX.setAcceleration(6000);
-  stepperZ.setAcceleration(6000);
+  stepperX.setAcceleration(800);
+  stepperZ.setAcceleration(600);
   stepperYL.setAcceleration(yAccel);
   stepperYR.setAcceleration(yAccel);
 
@@ -261,15 +377,17 @@ void setup() {
   limitSwitch_Lower_Right.setDebounceTime(50);
   limitSwitch_Lower_Left.setDebounceTime(50);
 
-  homeAllAxes(); // Perform homing at cold start
-  delay(2000);
+  stepperX.setCurrentPosition(0);
+  stepperZ.setCurrentPosition(0);
+  stepperYL.setCurrentPosition(0);
+  stepperYR.setCurrentPosition(0);
+
+  homeAllAxes();
+  delay(5000);
+
 }
 
-void homeGantry() {
-  Serial.println("Homing...");
-  homeAllAxes();
-  Serial.println("Homing done.");
-}
+
 
 void reportPosition() {
   Serial.print("X: ");
@@ -289,41 +407,13 @@ void emergencyStop() {
 }
 
 
+
+
 void loop() {
- 
-  if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();  // Remove any whitespace or newline
-
-    if (input == "injectA") {
-      Serial.println("Command: injectA (Injecting 50mm)");
-      inject(50);
-    } else if (input == "injectB") {
-      Serial.println("Command: injectB (Retracting 50mm)");
-      inject(-50);
-    } else if (input.startsWith("Goto")) {
-      // Parse the command, expecting: gotoXYZ x y z
-      float x_mm, y_mm, z_mm;
-      int firstSpace = input.indexOf(' ');
-      int secondSpace = input.indexOf(' ', firstSpace + 1);
-      int thirdSpace = input.indexOf(' ', secondSpace + 1);
-
-      if (firstSpace > 0 && secondSpace > 0 && thirdSpace > 0) {
-        x_mm = input.substring(firstSpace + 1, secondSpace).toFloat();
-        y_mm = input.substring(secondSpace + 1, thirdSpace).toFloat();
-        z_mm = input.substring(thirdSpace + 1).toFloat();
-
-        Serial.println("Parsed GOTO command.");
-        gotoXYZ(x_mm, y_mm, z_mm);
-      } else {
-        Serial.println("Invalid gotoXYZ format. Use: gotoXYZ x y z");
-      }
-    } else {
-      Serial.print("Unknown command: ");
-      Serial.println(input);
-    }
-  }
+  handleSerialCommands();  // Always listen for commands
+  delay(2000);
 }
+
 
 
 
