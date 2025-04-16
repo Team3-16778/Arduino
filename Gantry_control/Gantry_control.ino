@@ -382,9 +382,6 @@ void setup() {
   stepperYL.setCurrentPosition(0);
   stepperYR.setCurrentPosition(0);
 
-  homeAllAxes();
-  delay(5000);
-
 }
 
 
