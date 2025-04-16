@@ -241,7 +241,7 @@ void moveTo3D(float x_mm, float y_mm, float z_mm) {
 }
 
 
-void inject(float y_mm) {
+void inject(float y_mm, float desiredMoveTime) {
   const float angleTan = 0.577;  // tan(30°)
   float z_mm = y_mm * angleTan;
 
@@ -255,25 +255,24 @@ void inject(float y_mm) {
   float targetZ = currentZ + z_mm;
 
   // ----- Time Sync -----
-  float desiredMoveTime = 0.5;  // seconds
   float y_mm_per_sec = y_mm / desiredMoveTime;
   float z_mm_per_sec = z_mm / desiredMoveTime;
 
   const float mmPerRev_Y = 8.0;
-  const float mmPerRev_Z = 53.33;
+  const float mmPerRev_Z = 58.33;
 
   float y_RPM = (y_mm_per_sec / mmPerRev_Y) * 60.0;
-  float z_RPM = (z_mm_per_sec / mmPerRev_Z) * 60.0 * 0.8;
+  float z_RPM = (z_mm_per_sec / mmPerRev_Z) * 60.0;
 
   setSpeedRPM(stepperYL, y_RPM);
   setSpeedRPM(stepperYR, y_RPM);
   setSpeedRPM(stepperZ, z_RPM);
 
-  // ----- Acceleration Sync (steps/sec²), scaled for linear distance per step
-  const float linearAccel_mm_per_s2 = 900.0;  // target acceleration in mm/s²
+  // ----- Acceleration Sync (steps/sec²)
+  const float linearAccel_mm_per_s2 = 900.0;
 
   float accelY_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_Y;
-  float accelZ_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_XZ * 0.5;
+  float accelZ_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_XZ;
 
   stepperYL.setAcceleration(accelY_steps_per_s2);
   stepperYR.setAcceleration(accelY_steps_per_s2);
@@ -340,15 +339,15 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTA") {
       Serial.println("ACK: Inject A command executed");
-      inject(866);
+      inject(86.6, 3);
     }
     else if (command == "INJECT") {
       Serial.println("ACK: Inject command executed");
-      inject(26);  // Replace with injectA() if needed
+      inject(26, 0.5);  // Replace with injectA() if needed
     }
     else if (command == "INJECTC") {
       Serial.println("ACK: Inject C (retraction) command executed");
-      inject(-26);  // Replace with injectB() if needed
+      inject(-120, 5);  // Replace with injectB() if needed
     }
     else {
       Serial.println("ERR: Unknown command format");
@@ -419,14 +418,14 @@ void loop() {
   
   homeAllAxes();
   delay(3000);
-  moveTo3D(200, 260, 140);
+  moveTo3D(260, 150, 180);
   delay(5000);
-  inject(86.6);
+  inject(86.6, 3);
   delay(1000);
-  inject(26);
+  inject(26, 0.5);
   delay(1000);
-  inject(-120);
-  moveTo3D(200, 250, 40);
+  inject(-120, 5);
+  moveTo3D(260, 150, 180);
   delay(1000);
   moveTo3D(10, 250, 40);
   delay(1000);
