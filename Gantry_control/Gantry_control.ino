@@ -389,8 +389,7 @@ void setup() {
   stepperYL.setCurrentPosition(0);
   stepperYR.setCurrentPosition(0);
 
-  homeAllAxes();
-  delay(5000);
+
 
 }
 
@@ -418,7 +417,7 @@ void emergencyStop() {
 
 void loop() {
   handleSerialCommands();  // Always listen for commands
-  delay(2000);
+
 }
 
 
