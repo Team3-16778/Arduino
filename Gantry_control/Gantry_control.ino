@@ -138,7 +138,7 @@ void homeAllAxes() {
   stepperYL.setCurrentPosition(0);
   stepperYR.setCurrentPosition(0);
 
-  // Move Y to 200mm
+  // Move Y to 260mm
   moveYBoth(260.0);
 
   Serial.println("Y-axis homed and moved to 350mm.");
@@ -167,8 +167,8 @@ void homeAllAxes() {
 
   stepperX.setCurrentPosition(0);
 
-  // Move X to 100mm
-  int32_t xTarget = toSteps_XZ(100.0);
+  // Move X to 230mm
+  int32_t xTarget = toSteps_XZ(230.0);
   stepperX.moveTo(xTarget);
   stepperX.runToPosition();
   Serial.println("X-axis homed and moved to 100mm.");
@@ -197,8 +197,8 @@ void homeAllAxes() {
 
   stepperZ.setCurrentPosition(0);
 
-  // Move Z to 200mm
-  int32_t zTarget = toSteps_XZ(290.0);
+  // Move Z to 140mm
+  int32_t zTarget = toSteps_XZ(140.0);
   stepperZ.moveTo(zTarget);
   stepperZ.runToPosition();
   Serial.println("Z-axis homed and moved to 200mm.");
@@ -419,9 +419,3 @@ void loop() {
   handleSerialCommands();  // Always listen for commands
 
 }
-
-
-
-
-
-
