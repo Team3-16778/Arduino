@@ -103,8 +103,8 @@ void moveYBoth(float y_mm) {
 
 void homeAllAxes() {
   Serial.println("Starting Y-axis homing...");
-  stepperYL.setMaxSpeed(1600);
-  stepperYR.setMaxSpeed(1600);
+  stepperYL.setMaxSpeed(2500);
+  stepperYR.setMaxSpeed(2500);
   stepperYL.moveTo(-100000);
   stepperYR.moveTo(-100000);
 
@@ -176,7 +176,7 @@ void homeAllAxes() {
   // --------------------------
 
   Serial.println("Starting Z-axis homing...");
-  stepperZ.setMaxSpeed(300);
+  stepperZ.setMaxSpeed(500);
   stepperZ.moveTo(-10000);
 
   bool zHomed = false;
@@ -258,7 +258,7 @@ void inject(float y_mm, float desiredMoveTime) {
   float y_mm_per_sec = y_mm / desiredMoveTime;
   float z_mm_per_sec = z_mm / desiredMoveTime;
 
-  const float mmPerRev_Y = 8.0;
+  const float mmPerRev_Y = 8.0; 
   const float mmPerRev_Z = 58.33;
 
   float y_RPM = (y_mm_per_sec / mmPerRev_Y) * 60.0;
@@ -340,7 +340,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTA") {
       Serial.println("ACK: Inject A command executed");
-      inject(86.6, 3);
+      inject(86.6, 1);
     }
     else if (command == "INJECT") {
       Serial.println("ACK: Inject command executed");
@@ -348,7 +348,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTC") {
       Serial.println("ACK: Inject C (retraction) command executed");
-      inject(-120, 3);  // Replace with injectB() if needed
+      inject(-120, 2);  // Replace with injectB() if needed
     }
     else {
       Serial.println("ERR: Unknown command format");
@@ -361,7 +361,7 @@ void handleSerialCommands() {
 void setup() {
   Serial.begin(9600);
 
-  float yRPM = 8000;
+  float yRPM = 5000;
   int yAccel = 2000;
 
   setSpeedRPM(stepperX, 800);
