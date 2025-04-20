@@ -102,7 +102,7 @@ void moveYBoth(float y_mm) {
 
 
 void homeAllAxes() {
-  Serial.println("Starting Y-axis homing...");
+  // Serial.println("Starting Y-axis homing...");
   stepperYL.setMaxSpeed(2500);
   stepperYR.setMaxSpeed(2500);
   stepperYL.moveTo(-100000);
@@ -117,7 +117,7 @@ void homeAllAxes() {
     if (!limitSwitch_Upper_Left.isPressed()) {
       stepperYL.run();
     } else if (!yLeftHomed) {
-      Serial.println("Homing Hit: Y_Upper_Left Limit Switch");
+      // Serial.println("Homing Hit: Y_Upper_Left Limit Switch");
       stepperYL.stop();
       yLeftHomed = true;
     }
@@ -125,7 +125,7 @@ void homeAllAxes() {
     if (!limitSwitch_Upper_Right.isPressed()) {
       stepperYR.run();
     } else if (!yRightHomed) {
-      Serial.println("Homing Hit: Y_Upper_Right Limit Switch");
+      // Serial.println("Homing Hit: Y_Upper_Right Limit Switch");
       stepperYR.stop();
       yRightHomed = true;
     }
@@ -141,11 +141,11 @@ void homeAllAxes() {
   // Move Y to 260mm
   moveYBoth(260.0);
 
-  Serial.println("Y-axis homed and moved to 350mm.");
+  // Serial.println("Y-axis homed and moved to 350mm.");
 
   // --------------------------
 
-  Serial.println("Starting X-axis homing...");
+  // Serial.println("Starting X-axis homing...");
   stepperX.setMaxSpeed(600);
   stepperX.moveTo(-10000);
 
@@ -157,7 +157,7 @@ void homeAllAxes() {
     if (!limitSwitch_X_Left.isPressed()) {
       stepperX.run();
     } else if (!xHomed) {
-      Serial.println("Homing Hit: X_Left Limit Switch");
+      // Serial.println("Homing Hit: X_Left Limit Switch");
       stepperX.stop();
       xHomed = true;
     }
@@ -171,11 +171,11 @@ void homeAllAxes() {
   int32_t xTarget = toSteps_XZ(230.0);
   stepperX.moveTo(xTarget);
   stepperX.runToPosition();
-  Serial.println("X-axis homed and moved to 100mm.");
+  // Serial.println("X-axis homed and moved to 100mm.");
 
   // --------------------------
 
-  Serial.println("Starting Z-axis homing...");
+  // Serial.println("Starting Z-axis homing...");
   stepperZ.setMaxSpeed(500);
   stepperZ.moveTo(-10000);
 
@@ -187,7 +187,7 @@ void homeAllAxes() {
     if (!limitSwitch_Z_Bottom.isPressed()) {
       stepperZ.run();
     } else if (!zHomed) {
-      Serial.println("Homing Hit: Z_Bottom Limit Switch");
+      // Serial.println("Homing Hit: Z_Bottom Limit Switch");
       stepperZ.stop();
       zHomed = true;
     }
@@ -201,7 +201,7 @@ void homeAllAxes() {
   int32_t zTarget = toSteps_XZ(140.0);
   stepperZ.moveTo(zTarget);
   stepperZ.runToPosition();
-  Serial.println("Z-axis homed and moved to 200mm.");
+  // Serial.println("Z-axis homed and moved to 200mm.");
 
   Serial.println("Homing complete.");
 }
@@ -213,10 +213,10 @@ void moveTo3D(float x_mm, float y_mm, float z_mm) {
   int32_t stepsZ = toSteps_XZ(z_mm);
   int32_t stepsY = toSteps_Y(y_mm);
 
-  Serial.println("Moving to 3D position:");
-  Serial.print("  Target X (mm): "); Serial.print(x_mm); Serial.print(" → Steps: "); Serial.println(stepsX);
-  Serial.print("  Target Y (mm): "); Serial.print(y_mm); Serial.print(" → Steps: "); Serial.println(stepsY);
-  Serial.print("  Target Z (mm): "); Serial.print(z_mm); Serial.print(" → Steps: "); Serial.println(stepsZ);
+  // Serial.println("Moving to 3D position:");
+  // Serial.print("  Target X (mm): "); Serial.print(x_mm); Serial.print(" → Steps: "); Serial.println(stepsX);
+  // Serial.print("  Target Y (mm): "); Serial.print(y_mm); Serial.print(" → Steps: "); Serial.println(stepsY);
+  // Serial.print("  Target Z (mm): "); Serial.print(z_mm); Serial.print(" → Steps: "); Serial.println(stepsZ);
 
   stepperX.moveTo(stepsX);
   stepperZ.moveTo(stepsZ);
@@ -279,13 +279,13 @@ void inject(float y_mm, float desiredMoveTime) {
   stepperZ.setAcceleration(accelZ_steps_per_s2);
 
   // ----- Log -----
-  Serial.print("Injecting at 30° to Y: ");
-  Serial.print(targetY); Serial.print(" mm, Z: ");
-  Serial.print(targetZ); Serial.print(" mm | ");
-  Serial.print("Y RPM: "); Serial.print(y_RPM);
-  Serial.print(", Z RPM: "); Serial.print(z_RPM);
-  Serial.print(" | Accel Y: "); Serial.print(accelY_steps_per_s2);
-  Serial.print(", Accel Z: "); Serial.println(accelZ_steps_per_s2);
+  // Serial.print("Injecting at 30° to Y: ");
+  // Serial.print(targetY); Serial.print(" mm, Z: ");
+  // Serial.print(targetZ); Serial.print(" mm | ");
+  // Serial.print("Y RPM: "); Serial.print(y_RPM);
+  // Serial.print(", Z RPM: "); Serial.print(z_RPM);
+  // Serial.print(" | Accel Y: "); Serial.print(accelY_steps_per_s2);
+  // Serial.print(", Accel Z: "); Serial.println(accelZ_steps_per_s2);
 
   // ----- Move -----
   moveTo3D(currentX, targetY, targetZ);
@@ -322,10 +322,10 @@ void injectZeroAngle(float y_mm, float desiredMoveTime) {
   stepperYR.setAcceleration(accelY_steps_per_s2);
 
   // ----- Log -----
-  Serial.print("Injecting at 0° (no Z motion): Y → ");
-  Serial.print(targetY); Serial.print(" mm | ");
-  Serial.print("Y RPM: "); Serial.print(y_RPM);
-  Serial.print(" | Accel Y: "); Serial.println(accelY_steps_per_s2);
+  // Serial.print("Injecting at 0° (no Z motion): Y → ");
+  // Serial.print(targetY); Serial.print(" mm | ");
+  // Serial.print("Y RPM: "); Serial.print(y_RPM);
+  // Serial.print(" | Accel Y: "); Serial.println(accelY_steps_per_s2);
 
   // ----- Execute motion -----
   moveTo3D(currentX, targetY, targetZ);  // Z is unchanged
@@ -337,11 +337,11 @@ void handleSerialCommands() {
     String command = Serial.readStringUntil('\n');
     command.trim();
 
-    Serial.print("RECV: ");
-    Serial.println(command);
+    // Serial.print("RECV: ");
+    // Serial.println(command);
 
     if (command.startsWith("GOTO")) {
-      Serial.println("ACK: Gantry position command received");
+      // Serial.println("ACK: Gantry position command received");
 
       // Inline parsing logic from processGotoCommand
       float x = 0, y = 0, z = 0;
@@ -358,35 +358,35 @@ void handleSerialCommands() {
         Serial.println("ERR: Invalid GOTO format. Use: GOTO x y z");
       }
     }
-    else if (command.startsWith("ROTATE")) {
-      Serial.println("ACK: End effector rotation command received");
-      // Add logic if needed
-    }
+    // else if (command.startsWith("ROTATE")) {
+    //   Serial.println("ACK: End effector rotation command received");
+    //   // Add logic if needed
+    // }
     else if (command == "HOME") {
-      Serial.println("ACK: Homing command received");
+      //Serial.println("ACK: Homing command received");
       homeAllAxes();
     }
     else if (command == "GETPOS") {
       Serial.println("ACK: Sending position");
       reportPosition();
     }
-    else if (command == "GETANGLES") {
-      Serial.println("ACK: Sending simulated angles: Theta45.0 Delta-15.0");
-    }
+    // else if (command == "GETANGLES") {
+    //   Serial.println("ACK: Sending simulated angles: Theta45.0 Delta-15.0");
+    // }
     else if (command == "STOP") {
       Serial.println("ACK: Emergency stop activated");
       emergencyStop();
     }
     else if (command == "INJECTA") {
-      Serial.println("ACK: Inject A command executed");
+      //Serial.println("ACK: Inject A command executed");
       inject(86.6, 1);
     }
     else if (command == "INJECT") {
-      Serial.println("ACK: Inject command executed");
+      //Serial.println("ACK: Inject command executed");
       inject(26, 0.5);  // Replace with injectA() if needed
     }
     else if (command == "INJECTC") {
-      Serial.println("ACK: Inject C (retraction) command executed");
+      //Serial.println("ACK: Inject C (retraction) command executed");
       inject(-120, 2);  // Replace with injectB() if needed
     }
     else {
