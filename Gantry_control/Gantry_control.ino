@@ -291,6 +291,45 @@ void inject(float y_mm, float desiredMoveTime) {
   moveTo3D(currentX, targetY, targetZ);
 }
 
+void injectZeroAngle(float y_mm, float desiredMoveTime) {
+  // Z remains unchanged
+  float z_mm = 0;
+
+  // ----- Current Position in mm -----
+  float currentY = stepperYL.currentPosition() / stepsPerMM_Y;
+  float currentZ = stepperZ.currentPosition() / stepsPerMM_XZ;
+  float currentX = stepperX.currentPosition() / stepsPerMM_XZ;
+
+  // ----- Target Positions in mm -----
+  float targetY = currentY + y_mm;
+  float targetZ = currentZ;  // Z unchanged
+
+  // ----- Time Sync -----
+  float y_mm_per_sec = y_mm / desiredMoveTime;
+
+  const float mmPerRev_Y = 8.0;
+  float y_RPM = (y_mm_per_sec / mmPerRev_Y) * 60.0;
+
+  // Set speeds for Y motors only
+  setSpeedRPM(stepperYL, y_RPM);
+  setSpeedRPM(stepperYR, y_RPM);
+
+  // ----- Acceleration -----
+  const float linearAccel_mm_per_s2 = 900.0;
+  float accelY_steps_per_s2 = linearAccel_mm_per_s2 * stepsPerMM_Y;
+
+  stepperYL.setAcceleration(accelY_steps_per_s2);
+  stepperYR.setAcceleration(accelY_steps_per_s2);
+
+  // ----- Log -----
+  Serial.print("Injecting at 0° (no Z motion): Y → ");
+  Serial.print(targetY); Serial.print(" mm | ");
+  Serial.print("Y RPM: "); Serial.print(y_RPM);
+  Serial.print(" | Accel Y: "); Serial.println(accelY_steps_per_s2);
+
+  // ----- Execute motion -----
+  moveTo3D(currentX, targetY, targetZ);  // Z is unchanged
+}
 
 
 void handleSerialCommands() {
