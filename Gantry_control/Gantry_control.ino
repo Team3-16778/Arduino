@@ -176,7 +176,7 @@ void homeAllAxes() {
   // --------------------------
 
   // Serial.println("Starting Z-axis homing...");
-  stepperZ.setMaxSpeed(500);
+  stepperZ.setMaxSpeed(300);
   stepperZ.moveTo(-10000);
 
   bool zHomed = false;
@@ -383,7 +383,8 @@ void handleSerialCommands() {
     }
     else if (command == "INJECT") {
       //Serial.println("ACK: Inject command executed");
-      inject(26, 0.5);  // Replace with injectA() if needed
+      delay(1500);
+      inject(26, 1.0);  // Replace with injectA() if needed
     }
     else if (command == "INJECTC") {
       //Serial.println("ACK: Inject C (retraction) command executed");

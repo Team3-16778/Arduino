@@ -57,8 +57,8 @@ void setup()
   digitalWrite(EN_PIN, LOW);                  // enable driver
 
   stepper.setPinsInverted(true, false, false); // invert DIR
-  stepper.setMaxSpeed(2000);                  // steps / s
-  stepper.setAcceleration(800);               // steps / s²
+  stepper.setMaxSpeed(5000);                  // steps / s
+  stepper.setAcceleration(1000);               // steps / s²
 
   stepper.setCurrentPosition(0);              // we are at physical 0 mm
 }
