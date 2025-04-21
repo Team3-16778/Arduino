@@ -379,7 +379,7 @@ void handleSerialCommands() {
     }
     else if (command == "INJECTA") {
       //Serial.println("ACK: Inject A command executed");
-      inject(86.6, 1);
+      inject(43.3, 1);
     }
     else if (command == "INJECT") {
       //Serial.println("ACK: Inject command executed");
