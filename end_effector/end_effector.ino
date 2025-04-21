@@ -1,100 +1,105 @@
+/*****************************************************************
+ * End Effector – Servo + TB6600 stepper
+ *   ENA+  → 5   (active LOW)
+ *   DIR+  → 6
+ *   PUL+  → 7
+ *   Servo signal → 9
+ *   All “−” pins → Arduino GND
+ *****************************************************************/
+
+#include <Arduino.h>
 #include <Servo.h>
 #include <AccelStepper.h>
+#include <math.h>          // lround()
 
-// ----- Servo Setup -----
-Servo myservo;
+/* ── Servo ──────────────────────────────────────────────── */
+Servo       myServo;
+const uint8_t SERVO_PIN = 9;
+float       currentTheta = 0.0f;
 
-// ----- Stepper Motor Setup -----
-const int EN_PIN   = 5;  // Enable pin for TB6600
-const int DIR_PIN  = 6;  // Direction pin
-const int STEP_PIN = 7;  // Step pin
-const int STEPS_PER_REV = 1600; // Steps per revolution (adjust as per your driver)
+/* ── TB6600 wiring ──────────────────────────────────────── */
+constexpr uint8_t EN_PIN   = 5;
+constexpr uint8_t DIR_PIN  = 6;
+constexpr uint8_t STEP_PIN = 7;
 
-const float steps_per_mm = 80.0;    // Example: 80 steps per mm (adjust according to your hardware)
-const float initial_position_mm = 40;  // Initial position in mm
+/* ── Mechanical constants ──────────────────────────────── */
+constexpr float STEPS_PER_MM = 80.0f;   // tune to your lead‑screw
+constexpr float STROKE_MM    = 100.0f;   // one‑way stroke length
 
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 
-// Function to perform a full stepper cycle (40mm -> 0mm -> 40mm)
-void performStepperCycle() {
-  long initial_steps = initial_position_mm * steps_per_mm;
-
-  // Move stepper from initial position to 0 mm
-  stepper.moveTo(0);
-  while (stepper.distanceToGo() != 0) {
-    stepper.run();
-  }
-  
-  // Now move stepper back to initial position (40 mm)
-  stepper.moveTo(initial_steps);
-  while (stepper.distanceToGo() != 0) {
-    stepper.run();
-  }
+/* ── Helper: move exactly +40 mm from current position ──── */
+void moveByStroke()
+{
+  long deltaSteps = lround(STROKE_MM * STEPS_PER_MM);
+  stepper.move(deltaSteps);                   // relative +40 mm
+  while (stepper.distanceToGo() != 0) stepper.run();
 }
 
-void setup() {
-  // Start serial communication for receiving commands
+/* ── Helper: go back to absolute 0 mm position ──────────── */
+void goHome()
+{
+  stepper.moveTo(0);                          // absolute 0 mm
+  while (stepper.distanceToGo() != 0) stepper.run();
+}
+
+/* ───────────────────────────────────────────────────────── */
+void setup()
+{
   Serial.begin(9600);
-  
-  // ----- Servo Initialization -----
-  myservo.attach(9);        // Attach the servo to pin 9
-  myservo.write(0);         // Set initial servo angle to 0 degrees
-  
-  // ----- Stepper Initialization -----
+
+  /* Servo */
+  myServo.attach(SERVO_PIN);
+  myServo.write(currentTheta);                // start at 0°
+
+  /* Stepper */
   pinMode(EN_PIN, OUTPUT);
-  digitalWrite(EN_PIN, LOW);  // Enable the stepper driver (LOW = enabled)
-  
-  stepper.setMaxSpeed(2000);       // Set maximum speed (in steps per second)
-  stepper.setAcceleration(800);    // Set acceleration (in steps per second squared)
-  
-  // Set the stepper's starting position to 40 mm in steps
-  long initial_steps = initial_position_mm * steps_per_mm;
-  stepper.setCurrentPosition(initial_steps);
-  
-  // Optionally, move the stepper to 0 mm and then back to 40 mm on startup.
-  stepper.moveTo(0);
-  while(stepper.distanceToGo() != 0) {
-    stepper.run();
-  }
-  stepper.moveTo(initial_steps);
+  digitalWrite(EN_PIN, LOW);                  // enable driver
+
+  stepper.setPinsInverted(true, false, false); // invert DIR
+  stepper.setMaxSpeed(2000);                  // steps / s
+  stepper.setAcceleration(800);               // steps / s²
+
+  stepper.setCurrentPosition(0);              // we are at physical 0 mm
 }
 
-void loop() {
-  // Check if data is available from the serial port
-  if (Serial.available() > 0) {
-    // Read an incoming line (ends with '\n')
-    String command = Serial.readStringUntil('\n');
-    command.trim();  // Remove any extra whitespace
-    
-    // Check if the command begins with "ROTATE"
-    if (command.startsWith("ROTATE")) {
-      // Expected command format: "ROTATE <theta> <delta>"
-      int firstSpace = command.indexOf(' ');
-      int secondSpace = command.indexOf(' ', firstSpace + 1);
-      
-      // Ensure both parameters exist
-      if (firstSpace != -1 && secondSpace != -1) {
-        String thetaStr = command.substring(firstSpace + 1, secondSpace);
-        String deltaStr = command.substring(secondSpace + 1);
-        
-        float theta = thetaStr.toFloat();
-        float delta = deltaStr.toFloat();
+void loop()
+{
+  /* ── Handle incoming serial commands ── */
+  if (Serial.available())
+  {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
 
-        // Set the servo to the specified angle
-        myservo.write(theta);  
-        Serial.print("Servo rotated to: ");
-        Serial.println(theta);
-        
-        // If delta is 1, run the stepper motor cycle
-        if (delta == 1.0) {
-          Serial.println("Performing stepper cycle...");
-          performStepperCycle();
-          Serial.println("Stepper cycle complete.");
+    /* ROTATE <theta> <delta> */
+    if (cmd.startsWith("ROTATE"))
+    {
+      // split after first and second spaces
+      int sp1 = cmd.indexOf(' ');
+      int sp2 = cmd.indexOf(' ', sp1 + 1);
+
+      if (sp1 != -1 && sp2 != -1)
+      {
+        float theta = cmd.substring(sp1 + 1, sp2).toFloat();
+        float delta = cmd.substring(sp2 + 1).toFloat();
+
+        currentTheta = constrain(theta, 0.0f, 180.0f);
+        myServo.write(currentTheta);
+
+        if (fabs(delta) < 0.5f) {            // treat 0 ±0.5 as zero
+          goHome();                          // δ = 0 → back to 0 mm
+        } else {
+          moveByStroke();                    // δ ≠ 0 → +40 mm stroke
         }
       }
     }
+
+    /* INJECT – always +40 mm stroke */
+    else if (cmd.equalsIgnoreCase("INJECT"))
+    {
+      moveByStroke();
+    }
   }
-  
-  // Always run the stepper so it can process any moves in the background.
-  stepper.run();
+
+  stepper.run();  // allow AccelStepper background processing
 }
